@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Channel Discovery</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{--bg:var(--tg-theme-bg-color,#fff);--fg:var(--tg-theme-text-color,#111);--hint:var(--tg-theme-hint-color,#777);--btn:var(--tg-theme-button-color,#2481cc);--btnfg:var(--tg-theme-button-text-color,#fff);--card:var(--tg-theme-secondary-bg-color,#f2f2f7)}
+@media(prefers-color-scheme:dark){:root{--bg:var(--tg-theme-bg-color,#000);--fg:var(--tg-theme-text-color,#fff);--hint:var(--tg-theme-hint-color,#8e8e93);--card:var(--tg-theme-secondary-bg-color,#1c1c1e)}}
+*{box-sizing:border-box}body{margin:0;font:15px -apple-system,system-ui,sans-serif;background:var(--bg);color:var(--fg)}
+header{position:sticky;top:0;background:var(--bg);padding:10px 12px;z-index:2}
+input{width:100%;padding:11px 12px;border:0;border-radius:10px;background:var(--card);color:var(--fg);font-size:16px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:4px 12px 16px}
+.tile{background:var(--card);border-radius:12px;padding:14px 12px;cursor:pointer}
+.tile b{display:block}.tile small,.sub,.desc{color:var(--hint)}
+.list{padding:0 12px 24px}.row{background:var(--card);border-radius:12px;padding:12px;margin-bottom:10px}
+.row .t{font-weight:600}.desc{margin:4px 0 8px;font-size:13px}
+a.join{display:inline-block;background:var(--btn);color:var(--btnfg);padding:7px 14px;border-radius:8px;text-decoration:none;font-size:14px}
+button.more{display:block;margin:6px auto 24px;padding:10px 20px;border:0;border-radius:10px;background:var(--card);color:var(--fg);font-size:15px}
+.bar{display:flex;gap:8px;padding:0 12px 8px}.chip{padding:6px 12px;border-radius:16px;background:var(--card);font-size:13px;cursor:pointer}.chip.on{background:var(--btn);color:var(--btnfg)}
+.tabs{display:flex;gap:6px;padding:0 12px 10px}.tab{flex:1;text-align:center;padding:10px 0;border-radius:10px;cursor:pointer;color:var(--hint)}.tab.on{background:var(--card);color:var(--fg)}
+.cats{padding:0 12px 20px}.cat{display:flex;align-items:center;gap:14px;background:var(--card);border-radius:14px;padding:12px 14px;margin-bottom:8px;cursor:pointer}
+.av{width:46px;height:46px;border-radius:50%;background:var(--btn);color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:600;flex:none}
+.cat .nm{font-size:17px;font-weight:500}.cat .ct{color:var(--hint);font-size:14px;margin-top:2px}.cat .ch{margin-left:auto;color:var(--hint);font-size:22px}
+</style></head><body>
+<header><input id="q" placeholder="&#128269; Search channels" autocomplete="off"></header>
+<div class="tabs"><div class="tab on" data-t="cats">Categories</div><div class="tab" data-t="top">Top</div></div>
+<div id="app"></div>
+<script>
+const tg=window.Telegram&&Telegram.WebApp; if(tg){tg.ready();tg.expand();}
+let isTop=false,data={channels:[]},cat=null,sort='subs',shown=20,term='';
+const $=s=>document.querySelector(s), app=$('#app');
+const fmt=n=>n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':''+n;
+const clean=s=>(s||'').replace(/https?:\/\/\S+|t\.me\/\S+|@\w+/g,'').replace(/\s{2,}/g,' ').trim();
+const esc=s=>(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function cats(){const m={};data.channels.forEach(c=>{(m[c.category]=m[c.category]||{n:0,s:0,tag:c.tag});m[c.category].n++;m[c.category].s+=c.subscribers});
+ return Object.entries(m).filter(([k])=>k!=='Other').sort((a,b)=>b[1].n-a[1].n);}
+function home(){cat=null;term='';$('#q').value='';isTop=false;if(tg)tg.BackButton.hide();setTab('cats');
+ const nf=n=>n>=1e3?(n/1e3).toFixed(1).replace('.0','')+'K':''+n;
+ app.innerHTML='<div class="cats">'+cats().map(([k,v])=>`<div class="cat" data-c="${esc(k)}"><div class="av">${esc(k[0])}</div><div><div class="nm">${esc(k)}</div><div class="ct">${v.n} channel${v.n===1?'':'s'}</div></div><div class="ch">&#8250;</div></div>`).join('')+'</div>'+
+ (data.updated?`<p class="sub" style="text-align:center">${data.channels.length} channels - updated ${esc(data.updated.slice(0,10))}</p>`:'');
+ app.querySelectorAll('.cat').forEach(t=>t.onclick=()=>{cat=t.dataset.c;shown=20;list();});}
+function setTab(t){document.querySelectorAll('.tab').forEach(e=>e.classList.toggle('on',e.dataset.t===t));}
+function list(){if(tg&&cat){tg.BackButton.show();tg.BackButton.onClick(home);}
+ let r=data.channels.filter(c=>(!cat||c.category===cat)&&(!term||(c.title+' '+c.description+' '+c.username).toLowerCase().includes(term)));
+ r.sort(sort==='subs'?(a,b)=>b.subscribers-a.subscribers:(a,b)=>(b.found||'').localeCompare(a.found||''));
+ const page=r.slice(0,shown);
+ app.innerHTML=`<div class="bar"><span class="chip ${sort==='subs'?'on':''}" data-s="subs">Most subscribers</span><span class="chip ${sort==='new'?'on':''}" data-s="new">Recently added</span></div>
+ <p class="sub" style="padding:0 12px">${esc(cat||(isTop&&!term?'Top channels':'Search results'))} - ${r.length} channels</p><div class="list">`+
+ page.map(c=>`<div class="row"><div class="t">${esc(c.title||c.username)}</div><div class="sub">${fmt(c.subscribers)} subscribers - ${esc(c.category)}</div><div class="desc">${esc(clean(c.description).slice(0,140))}</div><a class="join" href="https://t.me/${esc(c.username)}">Join</a></div>`).join('')+
+ (r.length>shown?'<button class="more">Load more</button>':'')+'</div>';
+ app.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{sort=c.dataset.s;list();});
+ const m=app.querySelector('.more'); if(m)m.onclick=()=>{shown+=20;list();};}
+document.querySelectorAll('.tab').forEach(e=>e.onclick=()=>{if(e.dataset.t==='top'){isTop=true;cat=null;shown=20;sort='subs';setTab('top');list();}else home();});
+$('#q').oninput=e=>{term=e.target.value.trim().toLowerCase();shown=20;term?list():(cat?list():home());};
+fetch('catalog.json?'+Date.now()).then(r=>r.json()).then(d=>{data=d;home();}).catch(()=>{app.textContent='Catalog not available yet.';});
+</script></body></html>
