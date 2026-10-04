@@ -1,0 +1,13 @@
+# Non-secret config. Secrets come from environment variables:
+#   BOT_TOKEN   - token from @BotFather
+#   CHANNEL_ID  - @yourchannel or numeric -100... id (can also be set here)
+channel_id: "@tgdisco_export"            # or set CHANNEL_ID env / GitHub secret
+posts_per_run: 1          # roundup posts per scheduled run
+channels_per_post: 12     # channels listed in one post (keeps under 4096 chars)
+repost_after_days: 45     # a channel may reappear in a roundup after this many days
+min_subscribers: 500
+max_enrich_per_run: 150   # polite cap on t.me page fetches per run
+max_age_days_last_post: 60  # skip dead channels
+tgstat_categories: [tech, crypto, business, news, education, entertainment, music, games, sport, travel, food, health, art, books, blogs, apps, video, quotes, linguistics, medicine, career, psychology, facts, marketing, fashion, politics]
+extra_seeds: []           # add known public usernames here, e.g. ["durov"]
+miniapp_url: "https://t.me/Nanoassitantbot/browse"   # Browse button under each post (needs BotFather /newapp, short name: browse)
