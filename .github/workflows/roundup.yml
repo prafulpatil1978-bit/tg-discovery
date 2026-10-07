@@ -15,6 +15,49 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.11", cache: pip }
       - run: pip install -r requirements.txt
+      - name: Pull catalog update (optional)
+        continue-on-error: true
+        env:
+          UPDATE_URL: "https://drive.google.com/uc?export=download&id=1d95ZWFCSDReDfKgpqhBWTMFw3YyHxhEK"
+        run: |
+          curl -fsSL --max-time 60 "$UPDATE_URL" -o /tmp/update.json || echo "no update file"
+          cat > /tmp/merge_update.py <<'PYEOF'
+          """Merge a published catalog update into state.json. Never touches posted/rr/rejected.
+          Usage: python merge_update.py update.json  (exit 0 always; prints what happened)"""
+          import json, sys, os
+          try:
+              upd = json.load(open(sys.argv[1], encoding="utf-8"))
+              stamp = str(upd["stamp"])
+              recs = upd["channels"]
+              assert isinstance(recs, list)
+          except Exception as e:
+              print("no usable update:", type(e).__name__); sys.exit(0)
+          import tgdisco
+          st = tgdisco.load()
+          if st.get("update_stamp") == stamp:
+              print("update already applied:", stamp); sys.exit(0)
+          KEYS = ("category", "description", "found", "last_post", "subscribers", "tag", "title", "url", "username")
+          chans, rej = st["channels"], st.get("rejected", {})
+          added = skipped = 0
+          for r in recs:
+              u = r.get("username") if isinstance(r, dict) else None
+              if not u or u in chans or u in rej:
+                  skipped += 1; continue
+              c = {k: r.get(k, "") for k in KEYS}
+              c["url"] = c["url"] or "https://t.me/" + u
+              chans[u] = c; added += 1
+          fr = st.get("frontier", [])
+          extra = [u for u in upd.get("frontier", []) if isinstance(u, str) and u not in chans and u not in rej and u not in fr]
+          if not added and not extra:
+              print(f"update {stamp}: nothing new, state untouched"); sys.exit(0)
+          fr = [u for u in fr if u not in chans] + extra
+          st["frontier"] = fr
+          st["update_stamp"] = stamp
+          tgdisco.save(st)
+          tgdisco.export_catalog(st)
+          print(f"applied {stamp}: +{added} channels, {skipped} skipped, frontier {len(fr)}, total {len(chans)}")
+          PYEOF
+          [ -s /tmp/update.json ] && PYTHONPATH=. python /tmp/merge_update.py /tmp/update.json || echo "skip merge"
       - name: Discover and post
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
