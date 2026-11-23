@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "taskmimic"
+version = "1.0.0"
+description = "Show your computer a task once, then let Gemini / GitHub Copilot models repeat it with computer use."
+requires-python = ">=3.9"
+dependencies = ["mss>=9", "pynput>=1.7", "pillow>=10", "requests>=2.28"]
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+
+[project.scripts]
+taskmimic = "taskmimic:main"
+
+[tool.setuptools]
+py-modules = ["taskmimic"]

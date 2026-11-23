@@ -1,0 +1,4 @@
+mss>=9
+pynput>=1.7
+pillow>=10
+requests>=2.28
